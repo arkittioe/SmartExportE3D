@@ -1,0 +1,181 @@
+
+var !file |Y:\#NAVIS-EXPORT\P02\NEW-EXPORT\P02.ATT|
+  !dilm    = ':='
+  !sepr    = '&end&'
+  !aIgnore = ',unset,=0/0,0,nulref,0metre,false,'
+  !oDepth  = !!ce.ddepth
+  !pDepth = -99
+  var !refe    refe
+
+
+  -- Open file
+  openfile "$!file" write !fUnit
+  handle ANY
+    openfile "$!file" overwrite !fUnit
+  endhandle
+
+  -- Write the file
+  -- Write Header
+  var !date clock date
+  var !time clock time
+  writefile $!fUnit |AVEVA_Attributes_File v1.0 , start: NEW , end: END , name_end: $!dilm , sep: $!sepr|
+  writefile $!fUnit |NEW Header Information|
+
+  var !dprt compose |  Source$!dilm AVEVA E3D Design Data $!sepr Date$!dilm $!date$n $!sepr Time$!dilm $!time|
+  writefile $!fUnit |$!dprt[1]|
+  var !mdb MDB
+  var !project PROJECT CODE
+  var !name (FULLNAME)
+  var !dprt compose |  Project$!dilm $!project $!sepr MDB$!dilm $!mdb $!sepr Element$!dilm $!name|
+  writefile $!fUnit |$!dprt[1]|
+  writefile $!fUnit |END|
+
+
+!list = 'SITE ZONE PIPE BRAN ELBOW BEND TEE FLAN OLET INST VALVE PCOMP FBLIND GASK TUBI REDU CAP COUP PLUG UNION ATTA'
+
+  !sites = ARRAY()
+  !zones = ARRAY()
+  !pipes = ARRAY()
+  Var !COLL collect all ($!list) with (name of site eq '/SUPPORT-109A-PI' or name of site eq '/U109A:PI' or name of site eq '/OVR04:PU')
+
+  !sites.unique()
+  !zones.unique()
+  !pipes.unique()
+
+  -- append all elements to array in hierarchy order
+  !all = ARRAY()
+  !all.appendArray(!sites)
+  !all.appendArray(!zones)
+  !all.appendArray(!pipes)
+  !all.appendArray(!coll)
+  !all.unique()
+
+  !nelts = !all.size()
+  if (!nelts eq 0) then
+    !!alert.error('No elements exported')
+     -- close file and hide form
+     closefile $!fUnit
+     !!fmsys.setProgress( 0 )
+  endif
+
+  --$p No of elements is $!nelts
+  -- initialise progress and interrupt system
+  !progress = 0
+  !progStep = 5
+  -- % progress report step
+
+  -- Loop through the list of elements
+  do !indx indices !all
+   skip if(TYPE of $!all[$!indx] eq |TUBI| and !this.tube.val eq false)
+     handle ANY
+        skip
+      endhandle
+    $!all[$!indx]
+
+    -- Hierarchy level
+    !depth = !!ce.ddepth
+    !tab   = !depth * 2 - !oDepth * 2
+    !iTab  = !tab + 2
+
+    -- End(s)
+    if(!depth eq !pDepth and !pDepth neq -99) then
+      var !dprt compose space $!tab |END|
+      writefile $!fUnit |$!dprt[1]|
+    elseif (!depth lt !pDepth) then
+      do !indxA from !pDepth to !depth by -1
+        var !dprt compose space $!indxA |END|
+        writefile $!fUnit |$!dprt[1]|
+      enddo
+    endif
+
+    !pDepth = !depth
+
+    -- attributes of element
+    ----var !attl delete
+    ----var !attl attlist
+    !attl = !!ce.attlist
+
+    -- Check if item is owned by a branch
+    if(TYPE neq |WORL|) then
+	 if(TYPE eq |BRAN|) then
+!attl.append('TULE')
+        !attl.append('CLLE')
+        !attl.append('NVOL')
+        !attl.append('NSRF')		
+		endif
+	 
+      if(TYPE of OWNER eq |BRAN| and NOT BADREF(SPREF)) then
+        !attl.append('APOS')
+        !attl.append('LPOS')
+        ----added for ENPPI ADMIN TEAM P-10226--
+        !attl.append('DTXR')
+        !attl.append('MTXX')
+		        !attl.append('NSRF')
+				        !attl.append('NVOL')
+
+        ----------------------------------------
+      endif
+    endif
+    -- Get name
+    !name = !!ce.fullname
+    var !dprt compose space $!tab |NEW $!name|
+    writefile $!fUnit |$!dprt[1]|
+
+    -- Loop through attribute array
+    !asize = !attl.width() + 3
+    do !attr values !attl
+      !attr = !attr.upCase()
+      var !attrib (ATTRIB $!attr)
+      handle ANY
+        var !attrib $!attr
+          handle ANY
+            skip
+          endhandle
+      endhandle
+
+      !attrib = !attrib.trim().replace('$$V','V').replace('$$v','v').replace('|','||')
+  
+  if( !attrib neq || and (!aIgnore.match(|,$!attrib$n,|) eq 0) ) then
+          var !dprt compose space $!iTab |$!attr$n$!dilm| width $!asize R space 2 |$!attrib|
+        writefile $!fUnit |$!dprt[1]|
+          handle ANY
+            writefile $!fUnit '$!dprt[1]'
+          endhandle
+ 
+     
+      endif
+    enddo
+    -- Update progress if required
+    !percentDone = int( (!indx * 100 ) / !nelts )
+    --$P index = $!indx, %done is $!percentDone, step $!progStep%
+    if( !percentDone - !progress ge !progStep ) then
+      !progress = !percentDone
+      --$P         $!progress%
+      !!fmsys.setProgress( !progress )
+    endif
+
+  enddo
+
+  if( defined(!depth) ) then
+    if(!depth gt !oDepth) then
+      do !indxA from !depth to !oDepth by -1
+        !tab  = !indxA * 2 - !oDepth * 2
+        var !dprt compose space $!tab |END|
+        writefile $!fUnit |$!dprt[1]|
+      enddo
+    endif
+  endif
+
+  $!refe
+
+  -- close file and hide form
+  closefile $!fUnit
+  handle any
+  endhandle
+  !!fmsys.setProgress( 0 )
+
+endmethod
+-- End of method definition
+
+---------------------------------------------------
+$* Email: hossein.pa.ad@gmail.com

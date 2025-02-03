@@ -1,0 +1,59 @@
+onerror continue
+PROJ DOR
+USER SYSTEM/XXXXXX
+/DOROOD-ALL-PLANT
+
+
+DESIGN
+SYSCOM |if not exist Y:\#NAVIS-EXPORT\DOR\NEW-EXPORT mkdir Y:\#NAVIS-EXPORT\DOR\NEW-EXPORT|
+$M/Y:\ADMIN\Z-IZADI\EXPORT_WITH_FULL_ATT\NAVIS\DOR\ATT.TXT
+$M/Y:\ADMIN\Z-IZADI\EXPORT_WITH_FULL_ATT\NAVIS\DOR\TUATT.TXT
+
+
+
+EXPORT FILE /Y:\#NAVIS-EXPORT\DOR\NEW-EXPORT\DOR.RVM OVER      $* RVM file
+EXPORT AUTOCOLOUR DISPLAYEXPORT ON     $* Activate of color
+EXPORT AUTOCOLOUR ON
+EXPORT REPR ON
+EXPORT HOLES ON                      
+EXPORT IMPLIED TUBE SEPARATE  
+
+
+EXPORT /P01-DOROODII-ST
+EXPORT /P01-DOROODI-ST
+EXPORT /P01-DOROODII-EQ
+EXPORT /P01-DOROODI-EQ
+EXPORT /STRESS
+EXPORT /UP8:EQ
+EXPORT /OVRP8:CA
+EXPORT /P01-DOROODII-PI
+EXPORT /P01-DOROODI-PI
+
+                                                                                    $* Export element list
+EXPORT FINISH                                                              $* FinisH
+
+
+SYSCOM |""C:\Program Files\Autodesk\Navisworks Manage 2020\roamer.exe" -nwc "Y:\#NAVIS-EXPORT\DOR\NEW-EXPORT\DOR.nwc" "Y:\#NAVIS-EXPORT\DOR\NEW-EXPORT\DOR.RVM""|
+
+
+
+VAR !PROJ PROJ CODE
+!CUDATE = OBJECT DATETIME()
+!DAY = !CUDATE.DATE().STRING()
+IF !DAY.LENGTH().EQ( 1 ) THEN
+  !DAY = '0' + !DAY
+ENDIF
+!MONTH = !CUDATE.MONTH().STRING()
+IF !MONTH.LENGTH().EQ( 1 ) THEN
+  !MONTH = '0' + !MONTH
+ENDIF
+
+
+!FILNAME = '$!PROJ-' + !CUDATE.YEAR().STRING()+ '-' + !MONTH + '-' + !DAY + '.nwc'
+
+SYSCOM |rename "Y:\#NAVIS-EXPORT\DOR\NEW-EXPORT\DOR.nwc" "$!FILNAME"|
+!FOLDER = '$!PROJ-' + !CUDATE.YEAR().STRING()+ '-' + !MONTH + '-' + !DAY
+SYSCOM |rename "Y:\#NAVIS-EXPORT\DOR\NEW-EXPORT" "$!FOLDER"|
+
+--------------------------------------------------------------------------
+FINISH
